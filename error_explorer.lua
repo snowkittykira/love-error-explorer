@@ -11,12 +11,13 @@
 --
 -- ## usage
 --
--- do `require 'error_explorer'` somewhere in your program
--- to set up the error handler.
+-- include `error_explorer.lua` in your project and
+-- `require` it somewhere near the start of your program
 --
 -- when an error happens, press `up` and `down` (or `k` and
--- `j`) to move up and down on the stack. click on tables
--- in the variable view to expand them.
+-- `j`) to move up and down on the stack, click on tables
+-- in the variable view to expand them, and scroll with the
+-- mousewheel.
 
 -- ## license
 --
@@ -290,10 +291,12 @@ local function handle_error (msg)
   local function keypressed (key)
     if key == 'up' or key == 'k' then
       current_stack_index = math.max (1, current_stack_index - 1)
+      stack_scroll = math.min (current_stack_index-1, stack_scroll)
       refresh_source ()
     end
     if key == 'down' or key == 'j' then
       current_stack_index = math.min (#stack_info, current_stack_index + 1)
+      stack_scroll = math.max (current_stack_index - (#stack_info - stack_max_scroll), stack_scroll)
       refresh_source ()
     end
   end
@@ -383,7 +386,7 @@ local function handle_error (msg)
 
     -- stack frames
     print_line ('stack:', c_mid)
-    section (P, y, W-2*P, H/2-2*P-y)
+    section (P, y, W-2*P, H/2-P-y)
     local stack_top_y = y
     y = y - round (stack_scroll_smooth * font_height)
     local last_hovered_stack_index = hovered_stack_index
@@ -401,7 +404,7 @@ local function handle_error (msg)
         end
       end
     end
-    stack_max_scroll = #stack_info - (H/2 - stack_top_y) / font_height
+    stack_max_scroll = #stack_info - (H/2-P - stack_top_y) / font_height
 
     local frame = stack_info [current_stack_index]
     if not frame then
