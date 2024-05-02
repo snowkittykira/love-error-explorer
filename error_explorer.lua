@@ -2,7 +2,7 @@
 --
 -- by kira
 --
--- version 0.0.1
+-- version 0.0.2
 --
 -- an interactive error screen for the love2d game engine.
 --
@@ -20,6 +20,11 @@
 -- mousewheel.
 --
 -- ## version history
+--
+-- version 0.0.2:
+--
+-- - automatically select the right stack frame at start
+-- - don't print full stack contents to terminal by default
 --
 -- version 0.0.1:
 --
@@ -48,6 +53,8 @@
 -- DEALINGS IN THE SOFTWARE.
 
 local utf8 = require("utf8")
+
+local print_stack_to_terminal = false
 
 -- util ------------------------------------------
 
@@ -131,7 +138,7 @@ local function get_stack_info ()
         variables = {},
         line = raw.currentline,
         source = raw.short_src,
-        fn_name = raw.name or (raw.short_src .. ':' .. tostring (raw.linedefined))
+        fn_name = raw.name or raw.linedefined ~= 0 and (raw.short_src .. ':' .. tostring (raw.linedefined))
       }
       table.insert (stack_info, info)
 
@@ -187,11 +194,14 @@ local function handle_error (msg)
 	print (debug.traceback ("Error: " .. msg, 5))
 
   local stack_info = get_stack_info ()
-  for i = 1, #stack_info do
-    local info = stack_info[i]
-    print (info.fn_name)
-    for j = 1, #info.variables do
-      print ('\t' .. tostring (info.variables[j].key) .. ': ' .. shorten (safe_tostring (info.variables[j].value)))
+  if print_stack_to_terminal then
+    for i = 1, #stack_info do
+      local info = stack_info[i]
+      print (string.format ('%s:%d', info.source, info.line) ..
+        (info.fn_name and (' in function ' .. info.fn_name) or ' at top level'))
+      for j = 1, #info.variables do
+        print ('\t' .. tostring (info.variables[j].key) .. ': ' .. shorten (safe_tostring (info.variables[j].value)))
+      end
     end
   end
 
@@ -261,13 +271,6 @@ local function handle_error (msg)
   -- get the backtrace
 	local trace = debug.traceback ('', 4)
 
-  -- what location does the error target
-  local target_file, target_linenum, msg_without_target = msg:match '^([^:]-%.lua):([^:]-): ?(.*)'
-  if target_file then
-    target_linenum = tonumber (target_linenum)
-    msg = msg_without_target
-  end
-
   -- start error explorer
 
   -- stack view
@@ -284,6 +287,19 @@ local function handle_error (msg)
   local variables_scroll = 0
   local variables_scroll_smooth = 0
   local mouse_over_variables = false
+
+  -- what location does the error target
+  local target_file, target_linenum, msg_without_target = msg:match '^([^:]-%.lua):([^:]-): ?(.*)'
+  if target_file then
+    target_linenum = tonumber (target_linenum)
+    msg = msg_without_target
+    for i = 1, #stack_info do
+      if target_file == stack_info[i].source and target_linenum == stack_info[i].line then
+        current_stack_index = i
+        break
+      end
+    end
+  end
 
   -- source view
   local source_lines = {}
@@ -430,8 +446,13 @@ local function handle_error (msg)
       end
       local y_before = y
       print_horizontal (string.format ('%s:%d', frame.source, frame.line), light_color)
-      print_horizontal (' in function ', dark_color)
-      print_line (string.format ('%s', frame.fn_name), light_color)
+      if frame.fn_name then
+        print_horizontal (' in function ', dark_color)
+        print_horizontal (string.format ('%s', frame.fn_name), light_color)
+      else
+        print_horizontal (' at top level', dark_color)
+      end
+      print_line ()
 
       if over_section then
         if my >= y_before and my < y then

@@ -2,7 +2,7 @@
 
 by kira
 
-version 0.0.1
+version 0.0.2
 
 an interactive error screen for the love2d game engine.
 
@@ -20,6 +20,11 @@ in the variable view to expand them, and scroll with the
 mousewheel.
 
 ## version history
+
+version 0.0.2:
+
+- automatically select the right stack frame at start
+- don't print full stack contents to terminal by default
 
 version 0.0.1:
 
