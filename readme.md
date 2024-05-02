@@ -2,7 +2,7 @@
 
 by kira
 
-version 0.0.0 (prerelease)
+version 0.0.1
 
 an interactive error screen for the love2d game engine.
 
@@ -18,3 +18,9 @@ when an error happens, press `up` and `down` (or `k` and
 `j`) to move up and down on the stack, click on tables
 in the variable view to expand them, and scroll with the
 mousewheel.
+
+## version history
+
+version 0.0.1:
+
+- initial release

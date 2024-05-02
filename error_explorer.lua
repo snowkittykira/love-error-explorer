@@ -2,7 +2,7 @@
 --
 -- by kira
 --
--- version 0.0.0 (prerelease)
+-- version 0.0.1
 --
 -- an interactive error screen for the love2d game engine.
 --
@@ -18,6 +18,12 @@
 -- `j`) to move up and down on the stack, click on tables
 -- in the variable view to expand them, and scroll with the
 -- mousewheel.
+--
+-- ## version history
+--
+-- version 0.0.1:
+--
+-- - initial release
 
 -- ## license
 --
@@ -93,14 +99,20 @@ local function get_lines (text)
   return lines
 end
 
+local function get_font_height ()
+  local font = love.graphics.getFont ()
+  return math.ceil (font:getHeight () * font:getLineHeight ())
+end
+
 local function draw_text (text, x, y)
+  text = text or ''
   local font = love.graphics.getFont ()
   local w = font:getWidth (text)
   local lines = 1
   for _ in text:gmatch ('\n') do
     lines = lines + 1
   end
-  local h = font:getHeight () * lines
+  local h = get_font_height () * lines
   love.graphics.print (text, x, y)
   return w, h
 end
@@ -222,19 +234,20 @@ local function handle_error (msg)
 	love.graphics.reset ()
 	local error_font = love.graphics.setNewFont (16)
 	local source_font = love.graphics.newFont (12)
-  error_font:setLineHeight (1.25)
-  source_font:setLineHeight (1.25)
+  error_font:setLineHeight (1.2)
+  source_font:setLineHeight (1.2)
 	love.graphics.setBackgroundColor (1/15, 1/15, 1/15)
 	love.graphics.setColor (1, 1, 1, 1)
 	love.graphics.clear (love.graphics.getBackgroundColor ())
 	love.graphics.origin ()
 
   -- colors
-  local c_dark = {0.5, 0.5, 0.5}
-  local c_mid = {0.85, 0.85, 0.85}
-  local c_bright = {1, 1, 1}
-  local c_red = {1.0, 0.0, 0.0}
-  local c_clear = {0.0, 0.0, 0.0, 0.0}
+  local c_verydark = {0.25, 0.25, 0.25}
+  local c_dark     = {0.5, 0.5, 0.5}
+  local c_mid      = {0.7, 0.7, 0.7}
+  local c_bright   = {1.0, 1.0, 1.0}
+  local c_red      = {1.0, 0.0, 0.0}
+  local c_clear    = {0.0, 0.0, 0.0, 0.0}
  
   -- sanitize utf-8
 	local sanitizedmsg = {}
@@ -340,30 +353,28 @@ local function handle_error (msg)
   local function draw ()
     local W = love.graphics.getWidth ()
     local H = love.graphics.getHeight ()
-    local P = 20
+    local P = 50
 
     local mx, my = love.mouse.getPosition ()
     local over_section = false
-    local x0, y0, x, y
+    local sx, sy, sw, sh
+    local x, y
 
-    local function go_to (new_x, new_y)
-      x0, y0 = new_x, new_y
-      x, y = x0, y0
-    end
-
-    local function section (sx, sy, sw, sh)
+    local function section (new_sx, new_sy, new_sw, new_sh)
+      sx, sy = new_sx, new_sy
+      sw, sh = new_sw, new_sh
+      x, y = sx, sy
       over_section =
         mx >= sx and mx < sx + sw and
         my >= sy and my < sy + sh
       love.graphics.setScissor (sx, sy, sw, sh)
-      go_to(sx, sy)
     end
 
     local function print_horizontal (text, color)
       if color then
         love.graphics.setColor (color)
       end
-      local dx, dy = draw_text (text, x, y)
+      local dx, _dy = draw_text (text, x, y)
       x = x + dx
     end
 
@@ -371,32 +382,56 @@ local function handle_error (msg)
       if color then
         love.graphics.setColor (color)
       end
-      local dx, dy = draw_text (text, x, y)
-      x = x0
+      local _dx, dy = draw_text (text, x, y)
+      x = sx
       y = y + dy
     end
+
+    local function draw_scrollbar (scroll, scroll_height, visible_height)
+      if scroll_height <= visible_height then
+        return
+      end
+      love.graphics.setColor (c_verydark)
+      love.graphics.rectangle ('fill', sx + sw - 4, sy, 4, sh, 2, 2, 2)
+      local scroll_y = scroll / scroll_height
+      local scroll_h = visible_height / scroll_height
+      love.graphics.setColor (c_dark)
+      love.graphics.rectangle ('fill', sx + sw - 4, sy + scroll_y * sh, 4, scroll_h*sh, 2, 2, 2)
+    end
+
     love.graphics.setFont (error_font)
-    local font_height = error_font:getHeight()
+    local font_height = get_font_height ()
 
     -- error message
-    section (P, P, W-2*P, H/2-2*P)
-    mouse_over_stack = over_section
-    print_line ('error:', c_mid)
-    print_line ('  ' .. msg, c_red)
+    section (P, P, W/2-2*P, H-2*P)
+    print_line ('error explorer', c_dark)
+    local _, wrapped_error = error_font:getWrap (msg, W/2-2*P)
+    for _, text in ipairs (wrapped_error) do
+      print_line (text, c_bright)
+    end
+    print_line ()
+    local left_space_left = H-P - y
+    local left_section_height = math.floor ((left_space_left - font_height)/2)
 
     -- stack frames
-    print_line ('stack:', c_mid)
-    section (P, y, W-2*P, H/2-P-y)
+    --print_line ('stack', c_dark)
+    section (P, y, W/2-2*P, left_section_height)
+    mouse_over_stack = over_section
     local stack_top_y = y
     y = y - round (stack_scroll_smooth * font_height)
     local last_hovered_stack_index = hovered_stack_index
     hovered_stack_index = false
     for i, frame in ipairs (stack_info) do
-      love.graphics.setColor (last_hovered_stack_index == i and c_bright or
-                              current_stack_index == i and c_mid or c_dark)
+      local light_color = c_mid
+      local dark_color = c_dark
+      if last_hovered_stack_index == i or current_stack_index == i then
+        light_color = c_bright
+        dark_color = c_bright
+      end
       local y_before = y
-      print_line (string.format ('  %s:%d in function %s',
-        frame.source, frame.line, frame.fn_name ))
+      print_horizontal (string.format ('%s:%d', frame.source, frame.line), light_color)
+      print_horizontal (' in function ', dark_color)
+      print_line (string.format ('%s', frame.fn_name), light_color)
 
       if over_section then
         if my >= y_before and my < y then
@@ -404,7 +439,9 @@ local function handle_error (msg)
         end
       end
     end
-    stack_max_scroll = #stack_info - (H/2-P - stack_top_y) / font_height
+    local stack_lines_shown = (sy + left_section_height - stack_top_y) / font_height
+    stack_max_scroll = #stack_info - stack_lines_shown
+    draw_scrollbar (stack_scroll_smooth, #stack_info, stack_lines_shown)
 
     local frame = stack_info [current_stack_index]
     if not frame then
@@ -412,9 +449,9 @@ local function handle_error (msg)
     end
 
     -- variables
-    section (P, H/2, W/2-2*P, H/2-P)
+    section (P, sy+left_section_height+font_height, W/2-2*P, left_section_height)
     mouse_over_variables = over_section
-    print_line ('variables:', c_mid)
+    --print_line ('variables', c_dark)
     section (P, y, W/2 - 2*P, H-P-y)
     local variables_top_y = y
     y = y - round (variables_scroll_smooth * font_height)
@@ -426,7 +463,7 @@ local function handle_error (msg)
       local hovered = variable == last_hovered_variable
       local y_before = y
       if variable.error then
-        print_line ('  ' .. variable.error, c_red)
+        print_line (indent .. variable.error, c_red)
       else
         print_horizontal (indent .. variable.key, hovered and c_bright or c_mid)
         print_horizontal (': ', variable == last_hovered_variable and c_bright or c_dark)
@@ -441,28 +478,31 @@ local function handle_error (msg)
 
       if variable.contents then
         for _, v in ipairs (variable.contents) do
-          draw_variable (v, indent .. '  ')
+          draw_variable (v, indent .. '\t')
         end
       end
     end
     for _, variable in ipairs (frame.variables) do
-      draw_variable (variable, '  ')
+      draw_variable (variable, '')
     end
-    variables_max_scroll = variable_count - (H-P - variables_top_y) / font_height
+    local variables_lines_shown = (H-P - variables_top_y) / font_height
+    variables_max_scroll = variable_count - variables_lines_shown
+    draw_scrollbar (variables_scroll_smooth, variable_count, variables_lines_shown)
 
     -- source
     love.graphics.setFont (source_font)
-    local source_height = H/2-P
-    section (W/2+P, H/2, W/2-2*P, source_height)
+    section (W/2+P, P, W/2-2*P, H-2*P)
+    print_line (frame.source .. '\n', c_dark)
+    local source_height = H-P - y
     local line = frame.line
-    local lines = math.floor (source_height / source_font:getHeight())
+    local lines = math.floor (source_height / get_font_height ())
     local context = math.floor ((lines-1) / 2)
     for i = line - context, line + context do
       if source_lines [i] then
-        print_horizontal (string.format ('%d', i), i == line and c_mid or c_dark)
-        x = x0
-        print_horizontal (#source_lines .. '  ', c_clear)
-        print_line (source_lines [i], i == line and c_mid or c_dark)
+        print_horizontal (string.format ('%d', i), i == line and c_bright or c_dark)
+        x = sx
+        print_horizontal (#source_lines .. '    ', c_clear)
+        print_line (source_lines [i], i == line and c_bright or c_dark)
       end
     end
   end
