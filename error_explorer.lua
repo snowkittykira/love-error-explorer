@@ -392,11 +392,11 @@ local function handle_error (msg)
         return
       end
       love.graphics.setColor (c_verydark)
-      love.graphics.rectangle ('fill', sx + sw - 4, sy, 4, sh, 2, 2, 2)
+      love.graphics.rectangle ('fill', sx + sw - 2, sy, 2, sh, 2, 2, 2)
       local scroll_y = scroll / scroll_height
       local scroll_h = visible_height / scroll_height
       love.graphics.setColor (c_dark)
-      love.graphics.rectangle ('fill', sx + sw - 4, sy + scroll_y * sh, 4, scroll_h*sh, 2, 2, 2)
+      love.graphics.rectangle ('fill', sx + sw - 2, sy + scroll_y * sh, 2, scroll_h*sh, 2, 2, 2)
     end
 
     love.graphics.setFont (error_font)
