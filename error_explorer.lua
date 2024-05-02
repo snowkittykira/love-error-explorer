@@ -2,7 +2,7 @@
 --
 -- by kira
 --
--- version 0.0.2
+-- version 0.0.3
 --
 -- an interactive error screen for the love2d game engine.
 --
@@ -20,6 +20,10 @@
 -- mousewheel.
 --
 -- ## version history
+--
+-- version 0.0.3:
+--
+-- - handle when source file isn't available
 --
 -- version 0.0.2:
 --
@@ -302,13 +306,13 @@ local function handle_error (msg)
   end
 
   -- source view
-  local source_lines = {}
+  local source_lines
 
   local function refresh_source ()
+    source_lines = nil
     local frame = stack_info[current_stack_index]
     local filename = frame.source
     if filename then
-      source_lines = nil
       pcall (function ()
         source_lines = get_lines (love.filesystem.read(filename))
       end)
@@ -514,17 +518,21 @@ local function handle_error (msg)
     love.graphics.setFont (source_font)
     section (W/2+P, P, W/2-2*P, H-2*P)
     print_line (frame.source .. '\n', c_dark)
-    local source_height = H-P - y
-    local line = frame.line
-    local lines = math.floor (source_height / get_font_height ())
-    local context = math.floor ((lines-1) / 2)
-    for i = line - context, line + context do
-      if source_lines [i] then
-        print_horizontal (string.format ('%d', i), i == line and c_bright or c_dark)
-        x = sx
-        print_horizontal (#source_lines .. '    ', c_clear)
-        print_line (source_lines [i], i == line and c_bright or c_dark)
+    if source_lines then
+      local source_height = H-P - y
+      local line = frame.line
+      local lines = math.floor (source_height / get_font_height ())
+      local context = math.floor ((lines-1) / 2)
+      for i = line - context, line + context do
+        if source_lines [i] then
+          print_horizontal (string.format ('%d', i), i == line and c_bright or c_dark)
+          x = sx
+          print_horizontal (#source_lines .. '    ', c_clear)
+          print_line (source_lines [i], i == line and c_bright or c_dark)
+        end
       end
+    else
+      print_line ('source unavailable')
     end
   end
 

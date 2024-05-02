@@ -2,7 +2,7 @@
 
 by kira
 
-version 0.0.2
+version 0.0.3
 
 an interactive error screen for the love2d game engine.
 
@@ -20,6 +20,10 @@ in the variable view to expand them, and scroll with the
 mousewheel.
 
 ## version history
+
+version 0.0.3:
+
+- handle when source file isn't available
 
 version 0.0.2:
 
