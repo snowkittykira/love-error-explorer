@@ -2,7 +2,7 @@
 --
 -- by kira
 --
--- version 0.0.3
+-- version 0.0.4
 --
 -- an interactive error screen for the love2d game engine.
 --
@@ -20,6 +20,10 @@
 -- mousewheel.
 --
 -- ## version history
+--
+-- version 0.0.4:
+--
+-- - fix for non-string keys and multiline keys
 --
 -- version 0.0.3:
 --
@@ -70,10 +74,10 @@ end
 
 local function shorten (str)
   local result = str:sub(1, 30)
-  result = result:match ('^([^\n]*)')
   if #result < #str then
     result = result .. '...'
   end
+  result = result:gsub ('\n', ' ')
   return result
 end
 
@@ -487,13 +491,9 @@ local function handle_error (msg)
       variable_count = variable_count + 1
       local hovered = variable == last_hovered_variable
       local y_before = y
-      if variable.error then
-        print_line (indent .. variable.error, c_red)
-      else
-        print_horizontal (indent .. variable.key, hovered and c_bright or c_mid)
-        print_horizontal (': ', variable == last_hovered_variable and c_bright or c_dark)
-        print_line (safe_tostring(variable.value))
-      end
+      print_horizontal (indent .. shorten(safe_tostring (variable.key)), hovered and c_bright or c_mid)
+      print_horizontal (': ', variable == last_hovered_variable and c_bright or c_dark)
+      print_line (safe_tostring(variable.value))
 
       if over_section and type (variable.value) == 'table' then
         if mx >= 0 and mx < W/2 and my >= y_before and my < y then
