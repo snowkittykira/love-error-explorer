@@ -26,11 +26,14 @@ explorer to provide options:
 require 'error_explorer' {
   -- change the limit of stack depth (default 20)
   stack_limit = 20,
+
   -- provide custom font for error / stack trace / variables
   error_font = love.graphics.newFont (16),
+
   -- provide custom font for source code
   source_font = love.graphics.newFont (12),
-  -- provide `open editor` to run a command when
+
+  -- provide `open_editor` to run a command when
   -- clicking a source line (disabled in fused builds,
   -- and when running from a file ending in .love, but
   -- it's safer to remove this when distributing)
