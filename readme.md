@@ -2,7 +2,7 @@
 
 by kira
 
-version 0.0.4
+version 0.0.5
 
 an interactive error screen for the love2d game engine.
 
@@ -19,7 +19,37 @@ when an error happens, press `up` and `down` (or `k` and
 in the variable view to expand them, and scroll with the
 mousewheel.
 
+you can provide an optional table when requiring error
+explorer to provide options:
+
+```lua
+require 'error_explorer' {
+  -- change the limit of stack depth (default 20)
+  stack_limit = 20,
+  -- provide custom font for error / stack trace / variables
+  error_font = love.graphics.newFont (16),
+  -- provide custom font for source code
+  source_font = love.graphics.newFont (12),
+  -- provide `open editor` to run a command when
+  -- clicking a source line (disabled in fused builds,
+  -- and when running from a file ending in .love, but
+  -- it's safer to remove this when distributing)
+  open_editor = function (filename, line)
+    -- for example using neovim remote
+    io.popen ('nvr ' .. filename .. ' +' .. line)
+  end,
+}
+```
+
 ## version history
+
+version 0.0.5:
+
+- added options table for configuring:
+  - stack limit
+  - fonts
+  - optional "open in editor" action
+- use less cpu when idle
 
 version 0.0.4:
 

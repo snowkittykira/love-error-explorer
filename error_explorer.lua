@@ -2,7 +2,7 @@
 --
 -- by kira
 --
--- version 0.0.4
+-- version 0.0.5
 --
 -- an interactive error screen for the love2d game engine.
 --
@@ -19,7 +19,37 @@
 -- in the variable view to expand them, and scroll with the
 -- mousewheel.
 --
+-- you can provide an optional table when requiring error
+-- explorer to provide options:
+--
+-- ```lua
+-- require 'error_explorer' {
+--   -- change the limit of stack depth (default 20)
+--   stack_limit = 20,
+--   -- provide custom font for error / stack trace / variables
+--   error_font = love.graphics.newFont (16),
+--   -- provide custom font for source code
+--   source_font = love.graphics.newFont (12),
+--   -- provide `open editor` to run a command when
+--   -- clicking a source line (disabled in fused builds,
+--   -- and when running from a file ending in .love, but
+--   -- it's safer to remove this when distributing)
+--   open_editor = function (filename, line)
+--     -- for example using neovim remote
+--     io.popen ('nvr ' .. filename .. ' +' .. line)
+--   end,
+-- }
+-- ```
+--
 -- ## version history
+--
+-- version 0.0.5:
+--
+-- - added options table for configuring:
+--   - stack limit
+--   - fonts
+--   - optional "open in editor" action
+-- - use less cpu when idle
 --
 -- version 0.0.4:
 --
@@ -62,9 +92,18 @@
 
 local utf8 = require("utf8")
 
-local print_stack_to_terminal = false
+local print_stack_variables_to_terminal = false
+local stack_limit = 20
+local open_editor
+local error_font
+local source_font
 
 -- util ------------------------------------------
+
+local function is_build ()
+  return love.filesystem.isFused () or
+    love.filesystem.getSource ():match ('%.love$')
+end
 
 local function safe_tostring (value)
   local success, value_string = pcall (tostring, value)
@@ -95,7 +134,11 @@ local function compare_keys (a, b)
 end
 
 local function approach (from, to)
-  return from + (to - from) * 0.25
+  local value = from + (to - from) * 0.25
+  if math.abs (value - to) * source_font:getHeight() < 0.5 then
+    value = to
+  end
+  return value
 end
 
 local function round (n)
@@ -135,8 +178,8 @@ end
 local function get_stack_info ()
   local stack_info = {}
   local level = 5
-  -- maximum 20 stack frames
-  while #stack_info < 20 do
+  -- maximum stack frames
+  while #stack_info < stack_limit do
     local raw = debug.getinfo (level)
     -- if no more stack frames, stop
     if not raw then break end
@@ -149,7 +192,6 @@ local function get_stack_info ()
         fn_name = raw.name or raw.linedefined ~= 0 and (raw.short_src .. ':' .. tostring (raw.linedefined))
       }
       table.insert (stack_info, info)
-
 
       -- local variables
       local local_index = 1
@@ -202,7 +244,7 @@ local function handle_error (msg)
 	print (debug.traceback ("Error: " .. msg, 5))
 
   local stack_info = get_stack_info ()
-  if print_stack_to_terminal then
+  if print_stack_variables_to_terminal then
     for i = 1, #stack_info do
       local info = stack_info[i]
       print (string.format ('%s:%d', info.source, info.line) ..
@@ -250,10 +292,14 @@ local function handle_error (msg)
 
   -- reset graphics
 	love.graphics.reset ()
-	local error_font = love.graphics.setNewFont (16)
-	local source_font = love.graphics.newFont (12)
-  error_font:setLineHeight (1.2)
-  source_font:setLineHeight (1.2)
+  if not error_font then
+    error_font = love.graphics.newFont (16)
+    error_font:setLineHeight (1.2)
+  end
+  if not source_font then
+    source_font = love.graphics.newFont (12)
+    source_font:setLineHeight (1.2)
+  end
 	love.graphics.setBackgroundColor (1/15, 1/15, 1/15)
 	love.graphics.setColor (1, 1, 1, 1)
 	love.graphics.clear (love.graphics.getBackgroundColor ())
@@ -295,6 +341,12 @@ local function handle_error (msg)
   local variables_scroll = 0
   local variables_scroll_smooth = 0
   local mouse_over_variables = false
+
+  -- source view
+  local hovered_source_line
+
+  -- idle tracking
+  local mouse_moved_time = 0
 
   -- what location does the error target
   local target_file, target_linenum, msg_without_target = msg:match '^([^:]-%.lua):([^:]-): ?(.*)'
@@ -358,6 +410,12 @@ local function handle_error (msg)
         table.sort (contents, compare_keys)
       end
     end
+    if hovered_source_line then
+      local frame = stack_info[current_stack_index]
+      if frame then
+        open_editor (frame.source, hovered_source_line)
+      end
+    end
   end
 
   local function wheelmoved (amount)
@@ -372,6 +430,16 @@ local function handle_error (msg)
   local function update ()
     stack_scroll_smooth = approach (stack_scroll_smooth, stack_scroll)
     variables_scroll_smooth = approach (variables_scroll_smooth, variables_scroll)
+  end
+
+  local function is_idle ()
+    if love.timer then
+      if love.timer.getTime() < mouse_moved_time + 1 then
+        return false
+      end
+    end
+    return stack_scroll_smooth == stack_scroll and
+           variables_scroll_smooth == variables_scroll
   end
 
   local function draw ()
@@ -518,6 +586,8 @@ local function handle_error (msg)
     love.graphics.setFont (source_font)
     section (W/2+P, P, W/2-2*P, H-2*P)
     print_line (frame.source .. '\n', c_dark)
+    local prev_hovered_line = hovered_source_line
+    hovered_source_line = nil
     if source_lines then
       local source_height = H-P - y
       local line = frame.line
@@ -525,10 +595,16 @@ local function handle_error (msg)
       local context = math.floor ((lines-1) / 2)
       for i = line - context, line + context do
         if source_lines [i] then
-          print_horizontal (string.format ('%d', i), i == line and c_bright or c_dark)
+          local y_before = y
+          local hovered = i == prev_hovered_line
+          local color = (hovered or i == line) and c_bright or c_dark
+          print_horizontal (string.format ('%d', i), color)
           x = sx
           print_horizontal (#source_lines .. '    ', c_clear)
-          print_line (source_lines [i], i == line and c_bright or c_dark)
+          print_line (source_lines [i], color)
+          if open_editor and over_section and y_before <= my and my < y then
+            hovered_source_line = i
+          end
         end
       end
     else
@@ -547,6 +623,8 @@ local function handle_error (msg)
         keypressed (a)
       elseif e == "mousepressed" and c == 1 then
         mousepressed ()
+      elseif e == "mousemoved" and love.timer then
+        mouse_moved_time = love.timer.getTime ()
       elseif e == "wheelmoved" and b ~= 0 then
         wheelmoved (b)
       elseif e == "touchpressed" then
@@ -572,7 +650,11 @@ local function handle_error (msg)
 
     -- wait
     if love.timer then
-      love.timer.sleep (1/60)
+      if is_idle () then
+        love.timer.sleep (1/20)
+      else
+        love.timer.sleep (1/60)
+      end
     end
 	end
 end
@@ -603,3 +685,29 @@ function love.errhand (msg)
   end
 end
 
+return function (options)
+  if options.stack_limit then
+    if type (options.stack_limit) ~= 'number' then
+      error ('when provided, stack_limit must be a number')
+    end
+    stack_limit = math.floor (options.stack_limit)
+  end
+  if options.open_editor and not is_build () then
+    if type (options.open_editor) ~= 'function' then
+      error ('when provided, `open_editor` should be a function', 2)
+    end
+    open_editor = options.open_editor
+  end
+  if options.error_font then
+    if type(options.error_font) ~= 'userdata' or not options.error_font:typeOf 'Font' then
+      error('when provided, error_font must be a font', 2)
+    end
+    error_font = options.error_font
+  end
+  if options.source_font then
+    if type(options.source_font) ~= 'userdata' or not options.source_font:typeOf 'Font' then
+      error('when provided, source_font must be a font', 2)
+    end
+    source_font = options.source_font
+  end
+end
