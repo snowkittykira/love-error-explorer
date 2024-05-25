@@ -450,7 +450,10 @@ local function handle_error (msg)
     local H = love.graphics.getHeight ()
     local P = 50
 
-    local mx, my = love.mouse.getPosition ()
+    local mx, my = -1, -1 
+    if love.mouse then
+      mx, my = love.mouse.getPosition ()
+    end
     local over_section = false
     local sx, sy, sw, sh
     local x, y
