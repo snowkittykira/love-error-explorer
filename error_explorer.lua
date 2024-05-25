@@ -2,7 +2,7 @@
 --
 -- by kira
 --
--- version 0.0.5
+-- version 0.0.6
 --
 -- an interactive error screen for the love2d game engine.
 --
