@@ -53,6 +53,10 @@ require 'error_explorer' {
 
 ## version history
 
+version 0.0.6:
+
+- fix issue when the mouse module isn't available
+
 version 0.0.5:
 
 - added options table for configuring:
