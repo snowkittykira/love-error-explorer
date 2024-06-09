@@ -2,7 +2,7 @@
 --
 -- by kira
 --
--- version 0.0.6
+-- version 0.0.7
 --
 -- an interactive error screen for the love2d game engine.
 --
@@ -52,6 +52,10 @@
 -- ```
 --
 -- ## version history
+--
+-- version 0.0.7:
+--
+-- - collapse multiline variable values to one line
 --
 -- version 0.0.6:
 --
@@ -130,7 +134,7 @@ local function shorten (str)
   if #result < #str then
     result = result .. '...'
   end
-  result = result:gsub ('\n', ' ')
+  result = result:gsub ('\n', '\\n')
   return result
 end
 
@@ -578,7 +582,7 @@ local function handle_error (msg)
       local y_before = y
       print_horizontal (indent .. shorten(safe_tostring (variable.key)), hovered and c_bright or c_mid)
       print_horizontal (': ', variable == last_hovered_variable and c_bright or c_dark)
-      print_line (safe_tostring(variable.value))
+      print_line (shorten (safe_tostring (variable.value)))
 
       if over_section and type (variable.value) == 'table' then
         if mx >= 0 and mx < W/2 and my >= y_before and my < y then

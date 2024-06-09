@@ -2,7 +2,7 @@
 
 by kira
 
-version 0.0.6
+version 0.0.7
 
 an interactive error screen for the love2d game engine.
 
@@ -52,6 +52,10 @@ require 'error_explorer' {
 ```
 
 ## version history
+
+version 0.0.7:
+
+- collapse multiline variable values to one line
 
 version 0.0.6:
 
