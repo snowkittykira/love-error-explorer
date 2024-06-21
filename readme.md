@@ -2,7 +2,7 @@
 
 by kira
 
-version 0.0.7
+version 0.0.8
 
 an interactive error screen for the love2d game engine.
 
@@ -52,6 +52,10 @@ require 'error_explorer' {
 ```
 
 ## version history
+
+version 0.0.8:
+
+- control-c to copy the error and traceback
 
 version 0.0.7:
 
