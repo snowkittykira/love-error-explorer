@@ -2,7 +2,7 @@
 --
 -- by kira
 --
--- version 0.0.8
+-- version 0.0.9
 --
 -- an interactive error screen for the love2d game engine.
 --
@@ -52,6 +52,10 @@
 -- ```
 --
 -- ## version history
+--
+-- version 0.0.9:
+--
+-- - don't error when message is too long to fit on-screen
 --
 -- version 0.0.8:
 --
@@ -485,7 +489,7 @@ local function handle_error (msg)
 
     local function section (new_sx, new_sy, new_sw, new_sh)
       sx, sy = new_sx, new_sy
-      sw, sh = new_sw, new_sh
+      sw, sh = math.max (0, new_sw), math.max (0, new_sh)
       x, y = sx, sy
       over_section =
         mx >= sx and mx < sx + sw and
